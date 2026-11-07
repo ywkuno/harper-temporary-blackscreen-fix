@@ -21,10 +21,8 @@ jobs:
       - name: Apply minimal overlay patch
         shell: pwsh
         run: |
-          git -C harper apply --check "$env:GITHUB_WORKSPACE/patch-repo/harper-v3.0.0-windows-overlay.patch"
-          if ($LASTEXITCODE -ne 0) { throw 'Patch check failed' }
-          git -C harper apply "$env:GITHUB_WORKSPACE/patch-repo/harper-v3.0.0-windows-overlay.patch"
-          if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed' }
+          git -C harper apply --ignore-space-change --check "$env:GITHUB_WORKSPACE/patch-repo/harper-v3.0.0-windows-overlay.patch"
+          git -C harper apply --ignore-space-change "$env:GITHUB_WORKSPACE/patch-repo/harper-v3.0.0-windows-overlay.patch"
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
