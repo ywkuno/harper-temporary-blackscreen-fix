@@ -1,0 +1,67 @@
+name: Build patched Harper for Windows (experimental)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout patch repository
+        uses: actions/checkout@v4
+        with:
+          path: patch-repo
+      - name: Checkout official Harper v3.0.0
+        uses: actions/checkout@v4
+        with:
+          repository: Automattic/harper
+          ref: v3.0.0
+          path: harper
+      - name: Apply minimal overlay patch
+        shell: pwsh
+        run: |
+          git -C harper apply --check "$env:GITHUB_WORKSPACE/patch-repo/harper-v3.0.0-windows-overlay.patch"
+          if ($LASTEXITCODE -ne 0) { throw 'Patch check failed' }
+          git -C harper apply "$env:GITHUB_WORKSPACE/patch-repo/harper-v3.0.0-windows-overlay.patch"
+          if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed' }
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.10.0
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc,wasm32-unknown-unknown
+      - name: Install just
+        uses: taiki-e/install-action@just
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@wasm-pack
+      - name: Install workspace dependencies
+        working-directory: harper
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+      - name: Build Harper browser WASM and shared front-end libraries
+        working-directory: harper
+        shell: bash
+        run: |
+          just build-harperjs
+          just build-lint-framework
+          just build-components
+          just build-harper-editor
+      - name: Build UNSIGNED Windows installer
+        working-directory: harper/harper-desktop
+        shell: pwsh
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tauri build --target x86_64-pc-windows-msvc -b nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: Archive unsigned installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: harper-v3-win-overlay-patched-UNSIGNED
+          path: harper/harper-desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
