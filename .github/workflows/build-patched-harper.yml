@@ -56,7 +56,9 @@ jobs:
         shell: pwsh
         run: |
           pnpm install --frozen-lockfile
-          pnpm tauri build --target x86_64-pc-windows-msvc -b nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          $configPath = Join-Path $env:RUNNER_TEMP "harper-unsigned.json"
+          Set-Content -Path $configPath -Value '{"bundle":{"createUpdaterArtifacts":false}}' -Encoding utf8
+          pnpm tauri build --target x86_64-pc-windows-msvc -b nsis --config $configPath
       - name: Archive unsigned installer
         uses: actions/upload-artifact@v4
         with:
